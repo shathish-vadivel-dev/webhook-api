@@ -15,6 +15,7 @@ const pool = new Pool({
 });
 
 // Webhook route
+// Webhook POST
 app.post('/webhook', async (req, res) => {
   const payload = {
     headers: req.headers,
@@ -22,7 +23,7 @@ app.post('/webhook', async (req, res) => {
   };
 
   try {
-    await pool.query('INSERT INTO webhook_logs (payload) VALUES ($1)', [payload]);
+    await pool.query('INSERT INTO webhook (payload) VALUES ($1)', [payload]);
     console.log('✅ Webhook saved.');
     res.status(200).send({ message: 'Webhook saved!' });
   } catch (error) {
