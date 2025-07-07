@@ -14,17 +14,6 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Test DB connection once on startup
-(async () => {
-  try {
-    const res = await pool.query('SELECT NOW()');
-    console.log('DB Connected:', res.rows[0]);
-  } catch (err) {
-    console.error('DB Connection Error:', err);
-    process.exit(1); // Exit if DB connection fails
-  }
-})();
-
 // Webhook route
 app.post('/webhook', async (req, res) => {
   const payload = {
@@ -42,8 +31,14 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('🌐 Webhook API is running');
+// GET route to check DB connection live
+app.get('/', async (req, res) => {
+  try {
+    await pool.query('SELECT NOW()');
+    res.send('✅ DB connected successfully');
+  } catch (error) {
+    res.status(500).send('❌ DB connection failed');
+  }
 });
 
 // Bind to 0.0.0.0 for Railway public access
