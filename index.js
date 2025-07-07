@@ -15,16 +15,20 @@ const pool = new Pool({
 });
 
 // Webhook route
-// Webhook POST
 app.post('/webhook', async (req, res) => {
   const payload = {
     headers: req.headers,
     body: req.body
   };
 
+  const createdAtUTC = new Date().toISOString(); // UTC time
+
   try {
-    await pool.query('INSERT INTO webhook (payload) VALUES ($1)', [payload]);
-    console.log('✅ Webhook saved.');
+    await pool.query(
+      'INSERT INTO webhook (payload, created_date) VALUES ($1, $2)',
+      [payload, createdAtUTC]
+    );
+    console.log('✅ Webhook saved at', createdAtUTC);
     res.status(200).send({ message: 'Webhook saved!' });
   } catch (error) {
     console.error('❌ DB Error:', error);
@@ -32,15 +36,27 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// GET route to check DB connection live
-app.get('/', async (req, res) => {
+// Get webhook data by document_file_uuid
+app.get('/webhook', async (req, res) => {
+  const docId = req.query.document_file_uuid;
+
+  if (!docId) {
+    return res.status(400).json({ error: 'document_file_uuid is required' });
+  }
+
   try {
-    await pool.query('SELECT NOW()');
-    res.send('✅ DB connected successfully');
+    const result = await pool.query(
+      `SELECT * FROM webhook WHERE payload->'payload'->>'document_file_uuid' = $1 ORDER BY received_at DESC`,
+      [docId]
+    );
+
+    res.status(200).json({ count: result.rowCount, data: result.rows });
   } catch (error) {
-    res.status(500).send('❌ DB connection failed');
+    console.error('❌ Query error:', error);
+    res.status(500).json({ error: 'Failed to fetch records' });
   }
 });
+
 
 // Bind to 0.0.0.0 for Railway public access
 app.listen(PORT, '0.0.0.0', () => {
