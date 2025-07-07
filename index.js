@@ -14,14 +14,14 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Test DB connection once on startup
 (async () => {
   try {
     const res = await pool.query('SELECT NOW()');
     console.log('DB Connected:', res.rows[0]);
-    process.exit(0);
   } catch (err) {
     console.error('DB Connection Error:', err);
-    process.exit(1);
+    process.exit(1); // Exit if DB connection fails
   }
 })();
 
