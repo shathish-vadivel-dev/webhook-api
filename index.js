@@ -14,27 +14,45 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Webhook route
+// Webhook Post
 app.post('/webhook', async (req, res) => {
-  const payload = {
-    headers: req.headers,
-    body: req.body
-  };
-
-  const createdAtUTC = new Date().toISOString(); // UTC time
+  let parsedBody;
 
   try {
+    // First, use the body if JSON was already parsed
+    if (typeof req.body === 'object' && !(req.body instanceof Buffer)) {
+      parsedBody = req.body;
+    } else {
+      // Otherwise, try converting raw buffer to string and parse if it's JSON
+      const bodyStr = req.body.toString('utf8').trim();
+      try {
+        parsedBody = JSON.parse(bodyStr);
+      } catch (e) {
+        // Not valid JSON — fallback to plain text string as payload
+        parsedBody = { raw: bodyStr };
+      }
+    }
+
+    const payload = {
+      headers: req.headers,
+      body: parsedBody
+    };
+
+    const createdAtUTC = new Date().toISOString();
+
     await pool.query(
       'INSERT INTO webhook (payload, created_date) VALUES ($1, $2)',
       [payload, createdAtUTC]
     );
+
     console.log('✅ Webhook saved at', createdAtUTC);
-    res.status(200).send({ message: 'Webhook saved!' });
+    res.status(200).json({ message: 'Webhook saved!' });
   } catch (error) {
-    console.error('❌ DB Error:', error);
-    res.status(500).send({ error: 'Failed to save webhook', payload });
+    console.error('❌ Save failed:', error);
+    res.status(500).json({ error: 'Failed to save webhook' });
   }
 });
+
 
 // Get webhook data by document_file_uuid
 app.get('/webhook/:docId', async (req, res) => {
