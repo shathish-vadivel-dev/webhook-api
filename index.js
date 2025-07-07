@@ -37,8 +37,8 @@ app.post('/webhook', async (req, res) => {
 });
 
 // Get webhook data by document_file_uuid
-app.get('/webhook', async (req, res) => {
-  const docId = req.query.document_file_uuid;
+app.get('/webhook/:docId', async (req, res) => {
+  const docId = req.params.docId;
 
   if (!docId) {
     return res.status(400).json({ error: 'document_file_uuid is required' });
@@ -46,14 +46,16 @@ app.get('/webhook', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT * FROM webhook WHERE payload->'payload'->>'document_file_uuid' = $1 ORDER BY received_at DESC`,
+      `SELECT * FROM webhook
+       WHERE payload->'body'->'payload'->>'document_file_uuid' = $1
+       ORDER BY created_date DESC`,
       [docId]
     );
 
     res.status(200).json({ count: result.rowCount, data: result.rows });
   } catch (error) {
-    console.error('❌ Query error:', error);
-    res.status(500).json({ error: 'Failed to fetch records' });
+    console.error('❌ Query error:', error.stack);
+    res.status(500).json({ error: 'Failed to fetch records', detail: error.message });
   }
 });
 
