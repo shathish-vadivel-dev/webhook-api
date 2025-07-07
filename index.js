@@ -6,7 +6,11 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Accept JSON normally
 app.use(bodyParser.json());
+
+// Accept *any* other content-type as raw buffer
+app.use(bodyParser.raw({ type: '*/*', limit: '50mb' }));
 
 // PostgreSQL pool
 const pool = new Pool({
@@ -14,21 +18,19 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Webhook Post
+// Webhook POST
 app.post('/webhook', async (req, res) => {
   let parsedBody;
 
   try {
-    // First, use the body if JSON was already parsed
     if (typeof req.body === 'object' && !(req.body instanceof Buffer)) {
       parsedBody = req.body;
     } else {
-      // Otherwise, try converting raw buffer to string and parse if it's JSON
       const bodyStr = req.body.toString('utf8').trim();
+
       try {
         parsedBody = JSON.parse(bodyStr);
-      } catch (e) {
-        // Not valid JSON — fallback to plain text string as payload
+      } catch {
         parsedBody = { raw: bodyStr };
       }
     }
@@ -53,8 +55,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-
-// Get webhook data by document_file_uuid
+// GET webhook by document_file_uuid
 app.get('/webhook/:docId', async (req, res) => {
   const docId = req.params.docId;
 
@@ -77,8 +78,7 @@ app.get('/webhook/:docId', async (req, res) => {
   }
 });
 
-
-// Bind to 0.0.0.0 for Railway public access
+// Bind to 0.0.0.0 for Railway
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
